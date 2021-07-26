@@ -4,9 +4,8 @@
 
 module Data.Successive (
     Successive (..),
+    dec, inc,
     clampDec, clampInc,
-    -- isMax, isMin,
-    inc, dec,
     decFrom, incFrom,
     decFromTo, incFromTo,
     enumerateDown, enumerateUp,
@@ -61,6 +60,10 @@ class (Eq a)=> Successive a where
   uncheckedInc = succ
 
 
+{- |
+@dec@ returns 'Just' the next lower value, or 'Nothing' if applied to the minimum value.
+@inc@ returns 'Just' the next higher value, or 'Nothing' if applied to the maximum value.
+-}
 dec, inc :: (Successive a)=> a -> Maybe a
 dec x
    | isMin x = Nothing
@@ -68,7 +71,13 @@ dec x
 inc x
    | isMax x = Nothing
    | otherwise = Just $ uncheckedInc x
+{-# INLINABLE dec #-}
+{-# INLINABLE inc #-}
 
+{- |
+@clampDec x@ returns @x@ if x is the minimum value, otherwise it decrements x.
+@clampInc x@ returns @x@ if x is the maximum value, otherwise it increments x.
+-}
 clampDec, clampInc :: (Successive a)=> a -> a
 clampDec x
    | isMin x = x
@@ -76,6 +85,8 @@ clampDec x
 clampInc x
    | isMax x = x
    | otherwise = uncheckedInc x
+{-# INLINABLE clampDec #-}
+{-# INLINABLE clampInc #-}
 
 decFrom, incFrom :: (Successive a)=> a -> NonEmpty.NonEmpty a
 decFrom = iterateMaybe dec
@@ -141,6 +152,7 @@ instance Successive (Fixed a) where
 iterateMaybe :: (a -> Maybe a) -> a -> NonEmpty.NonEmpty a
 {- ^
 @iterateMaybe f x@ is the 'NonEmpty' list produced by iterating @f@ from @x@ until @f x'@ is @Nothing@.
+
 -}
 iterateMaybe f = NonEmpty.unfoldr (\ x -> (x, f x))
 {-# INLINE iterateMaybe #-}
@@ -152,6 +164,13 @@ takeUntil :: (Foldable m)=> (a -> Bool) -> m a -> [a]
 takeUntil p = foldr (\ x xs -> x : if p x then [] else xs) []
 {-# INLINE takeUntil #-}
 
+
+{- NOTE: inlining
+Most derived methods are marked INLINABLE to allow them to specialize. This has essentialy the same as making them (non-derived) methods and always using the default definition.
+`decFrom`, `incFrom`, `decFromTo`, and `incFromTo` are marked INLINABLE to allow fusion. (All are good producers.)
+
+By 'derived methods' I mean functions that are defined in terms of class methods and carry class constraints, not class methods that can be automatically derived.
+-}
 
 {- NOTE: Could interdefine methods in a couple ways:
 
