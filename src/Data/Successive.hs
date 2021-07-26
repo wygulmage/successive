@@ -1,4 +1,8 @@
 {-# LANGUAGE DefaultSignatures
+           , RankNTypes
+           , ScopedTypeVariables
+           , GeneralizedNewtypeDeriving
+           , StandaloneDeriving
   #-}
 
 
@@ -14,11 +18,18 @@ module Data.Successive (
 
 import Data.Fixed (Fixed)
 import Data.Int
+import Data.Proxy (Proxy)
 import Data.Word
 import qualified Data.List.NonEmpty as NonEmpty
+import Data.Functor.Identity (Identity (Identity))
+import Data.Functor.Const (Const (Const))
+import Data.Ord (Down (Down))
+import Data.Monoid (Alt (Alt), Ap (Ap))
+import Data.Semigroup
+   (Any (Any), All (All), First (First), Last (Last), Max (Max), Min (Min))
 
 import Foreign.C.Types
-   (CBool, CChar, CSChar, CUChar, CShort, CUShort, CInt, CUInt, CLong, CULong, CLLong, CULLong)
+   (CBool, CChar, CSChar, CUChar, CShort, CUShort, CInt, CUInt, CLong, CULong, CLLong, CULLong, CPtrdiff, CIntPtr, CUIntPtr, CSize, CWchar, CSigAtomic)
 
 import Numeric.Natural
 import qualified GHC.Natural as Natural (naturalToWordMaybe)
@@ -131,6 +142,30 @@ instance Successive CLong
 instance Successive CULong
 instance Successive CLLong
 instance Successive CULLong
+instance Successive CPtrdiff
+instance Successive CIntPtr
+instance Successive CUIntPtr
+instance Successive CSize
+instance Successive CWchar
+instance Successive CSigAtomic
+instance Successive (Proxy a)
+
+deriving instance (Successive a)=> Successive (Identity a)
+deriving instance (Successive a)=> Successive (First a)
+deriving instance (Successive a)=> Successive (Last a)
+deriving instance (Successive a)=> Successive (Max a)
+deriving instance (Successive a)=> Successive (Min a)
+deriving instance (Successive (m a))=> Successive (Alt m a)
+deriving instance (Successive (m a))=> Successive (Ap m a)
+deriving instance (Successive a)=> Successive (Const a b)
+
+instance Successive Any where
+  uncheckedDec _ = Any False
+  uncheckedInc _ = Any True
+
+instance Successive All where
+  uncheckedDec _ = All False
+  uncheckedInc _ = All True
 
 instance Successive Natural where
   isMax _ = False
@@ -146,13 +181,21 @@ instance Successive (Fixed a) where
   isMax _ = False
   isMin _ = False
 
+instance (Successive a)=> Successive (Down a) where
+{- ^
+reverses the operations
+-}
+  isMax (Down x) = isMin x
+  isMin (Down x) = isMax x
+  uncheckedDec (Down x) = Down $ uncheckedInc x
+  uncheckedInc (Down x) = Down $ uncheckedDec x
+
 
 --- Helpers (not exported)
 
 iterateMaybe :: (a -> Maybe a) -> a -> NonEmpty.NonEmpty a
 {- ^
 @iterateMaybe f x@ is the 'NonEmpty' list produced by iterating @f@ from @x@ until @f x'@ is @Nothing@.
-
 -}
 iterateMaybe f = NonEmpty.unfoldr (\ x -> (x, f x))
 {-# INLINE iterateMaybe #-}
