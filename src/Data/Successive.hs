@@ -5,64 +5,77 @@
 module Data.Successive (
     Successive (..),
     clampDec, clampInc,
-    isMax, isMin,
+    -- isMax, isMin,
+    inc, dec,
     decFrom, incFrom,
-    decWhile, incWhile,
+    decFromTo, incFromTo,
+    enumerateDown, enumerateUp,
     ) where
 
-
-import Prelude hiding (pred, succ)
-import qualified Prelude as Enum
 
 import Data.Fixed (Fixed)
 import Data.Int
 import Data.Word
-import Data.List (unfoldr)
 import qualified Data.List.NonEmpty as NonEmpty
-import Data.Maybe (fromMaybe)
+
+import Foreign.C.Types
+   (CBool, CChar, CSChar, CUChar, CShort, CUShort, CInt, CUInt, CLong, CULong, CLLong, CULLong)
 
 import Numeric.Natural
+import qualified GHC.Natural as Natural (naturalToWordMaybe)
+
 
 -- TODO: Should Successive required Ord? Should in NOT require Eq?
--- TODO: Should Successive have any other methods (e.g. isMax, isMin, uncheckedInc, uncheckedDec)?
+
 
 {- |
+@'dec' x@ gives 'Just' the value closest to but smaller than @x@, or 'Nothing' if @x@ is the minimum value.
+@'inc' x@ gives 'Just' the value closest to but larger than @x@, or 'Nothing' if @x@ is the maximum value.
 A @Successive@ type may be bounded or unbounded, and you can determine whether a value is the maximum or minimum bound.
+
+Sensible defaults definitions are provided for types that are 'Bounded' and 'Enum'. For types that are not 'Bounded', you must provide definitions of 'isMax' and 'isMin'. For types that are not 'Enum', you must provide definitions of 'uncheckedDec' and 'uncheckedInc'.
+
+Although it is easy to define instances in terms of 'uncheckedDec' and 'uncheckedInc', those functions should rarely be used. 'dec', 'inc', 'clampedDec', and 'clampedInc' are provided as more convenient ways to use @Successive@ types.
+
+Laws:
+(Ord a)=>
+   clampDec x `min` x = clampDec x
+   clampInc x `min` x = x
+   clampDec x `max` x = x
+   clampInc x `max` x = clampInc x
 -}
 class (Eq a)=> Successive a where
-  inc :: a -> Maybe a
-  dec :: a -> Maybe a
+  isMax :: a -> Bool
+  isMin :: a -> Bool
+  uncheckedDec :: a -> a
+  uncheckedInc :: a -> a
 
-  -- isMin :: a -> Bool
-  -- isMax :: a -> Bool
+  default isMax :: (Bounded a)=> a -> Bool
+  default isMin :: (Bounded a)=> a -> Bool
+  isMax = (maxBound ==)
+  isMin = (minBound ==)
 
-  -- default isMax :: (Bounded a, Eq a)=> a -> Bool
-  -- default isMin :: (Bounded a, Eq a)=> a -> Bool
-  -- isMin = (minBound ==)
-  -- isMax = (maxBound ==)
+  default uncheckedDec :: (Enum a)=> a -> a
+  default uncheckedInc :: (Enum a)=> a -> a
+  uncheckedDec = pred
+  uncheckedInc = succ
 
-  -- default pred :: (Enum a)=> a -> Maybe a
-  -- default succ :: (Enum a)=> a -> Maybe a
-  -- pred x
-  --    | isMin x   = Nothing
-  --    | otherwise = Just $ Enum.pred x
 
-  -- succ x
-  --    | isMax x   = Nothing
-  --    | otherwise = Just $ Enum.succ x
-  default inc :: (Bounded a, Enum a)=> a -> Maybe a
-  default dec :: (Bounded a, Enum a)=> a -> Maybe a
-  inc = incBounded
-  dec = incBounded
-
+dec, inc :: (Successive a)=> a -> Maybe a
+dec x
+   | isMin x = Nothing
+   | otherwise = Just $ uncheckedDec x
+inc x
+   | isMax x = Nothing
+   | otherwise = Just $ uncheckedInc x
 
 clampDec, clampInc :: (Successive a)=> a -> a
-clampDec x = fromMaybe x (dec x)
-clampInc x = fromMaybe x (inc x)
-
-isMin, isMax :: (Successive a)=> a -> Bool
-isMin = null . dec
-isMax = null . inc
+clampDec x
+   | isMin x = x
+   | otherwise = uncheckedDec x
+clampInc x
+   | isMax x = x
+   | otherwise = uncheckedInc x
 
 decFrom, incFrom :: (Successive a)=> a -> NonEmpty.NonEmpty a
 decFrom = iterateMaybe dec
@@ -70,12 +83,11 @@ decFrom = iterateMaybe dec
 incFrom = iterateMaybe inc
 {-# INLINABLE incFrom #-}
 
-incFromTo x0 xN = takeUntil (xN ==) $ incFrom x0
+decFromTo, incFromTo :: (Successive a)=> a -> a -> [a]
 decFromTo x0 xN = takeUntil (xN ==) $ decFrom x0
-
-decWhile, incWhile :: (Successive a)=> (a -> Bool) -> a -> [a]
-decWhile p = NonEmpty.takeWhile p . decFrom
-incWhile p = NonEmpty.takeWhile p . incFrom
+incFromTo x0 xN = takeUntil (xN ==) $ incFrom x0
+{-# INLINABLE incFromTo #-}
+{-# INLINABLE decFromTo #-}
 
 enumerateDown, enumerateUp :: (Bounded a, Successive a)=> NonEmpty.NonEmpty a
 enumerateDown = decFrom maxBound
@@ -96,42 +108,42 @@ instance Successive Word8
 instance Successive Word16
 instance Successive Word32
 instance Successive Word64
+instance Successive CBool
+instance Successive CChar
+instance Successive CSChar
+instance Successive CUChar
+instance Successive CShort
+instance Successive CUShort
+instance Successive CInt
+instance Successive CUInt
+instance Successive CLong
+instance Successive CULong
+instance Successive CLLong
+instance Successive CULLong
 
 instance Successive Natural where
-  dec x
-     | x == 0 = Nothing
-     | otherwise = Just $ x - 1
-
-  inc = incUnbounded
+  isMax _ = False
+  isMin x = case Natural.naturalToWordMaybe x of
+     Just w  -> 0 == w
+     Nothing -> False
 
 instance Successive Integer where
-  dec = decUnbounded
-  inc = incUnbounded
+  isMax _ = False
+  isMin _ = False
 
 instance Successive (Fixed a) where
-  dec = decUnbounded
-  inc = incUnbounded
+  isMax _ = False
+  isMin _ = False
 
 
-isMaxBounded, isMinBounded :: (Bounded a, Eq a, Enum a)=> a -> Bool
-isMaxBounded = (maxBound ==)
-isMinBounded = (minBound ==)
-
-decBounded, incBounded :: (Bounded a, Eq a, Enum a)=> a -> Maybe a
-decBounded x
-     | isMinBounded x = Nothing
-     | otherwise      = Just $ Enum.succ x
-
-incBounded x
-     | isMaxBounded x = Nothing
-     | otherwise      = Just $ Enum.pred x
-
-decUnbounded, incUnbounded :: (Enum a)=> a -> Maybe a
-decUnbounded = Just . Enum.pred
-incUnbounded = Just . Enum.succ
+--- Helpers (not exported)
 
 iterateMaybe :: (a -> Maybe a) -> a -> NonEmpty.NonEmpty a
+{- ^
+@iterateMaybe f x@ is the 'NonEmpty' list produced by iterating @f@ from @x@ until @f x'@ is @Nothing@.
+-}
 iterateMaybe f = NonEmpty.unfoldr (\ x -> (x, f x))
+{-# INLINE iterateMaybe #-}
 
 takeUntil :: (Foldable m)=> (a -> Bool) -> m a -> [a]
 {- ^
@@ -139,3 +151,56 @@ takeUntil :: (Foldable m)=> (a -> Bool) -> m a -> [a]
 -}
 takeUntil p = foldr (\ x xs -> x : if p x then [] else xs) []
 {-# INLINE takeUntil #-}
+
+
+{- NOTE: Could interdefine methods in a couple ways:
+
+MINIMAL: (inc | (isMax, uncheckedInc)), (dec | (uncheckedDec, isMin))
+isMax = isMaxDefault
+isMin = isMinDefault
+dec = decDefault
+inc = incDefault
+uncheckedDec = uncheckedDecDefault
+uncheckedInc = uncheckedIncDefault
+
+MINIMAL: (isMax, uncheckedInc, uncheckedDec, isMin)
+isMax = isMaxBounded
+isMin = isMinBounded
+uncheckedDec = pred
+uncheckedInc = succ
+
+MINIMAL: (inc, dec)
+inc = incBoundedEnum
+dec = decBoundedEnum
+isMax = isMaxDefault
+isMin = isMinDefault
+uncheckedDec = uncheckedDecDefault
+uncheckedInc = uncheckedIncDefault
+
+
+decDefault x
+   | isMin x   = Nothing
+   | otherwise = Just $ uncheckedDec x
+uncheckedDecDefault = unJust . dec
+isMinDefault = null . dec
+
+incDefault x
+   | isMax x   = Nothing
+   | otherwise = Just $ uncheckedInc x
+uncheckedIncDefault = unJust . inc
+isMaxDefault = null . inc
+
+isMaxBounded = (maxBound ==)
+isMinBounded = (minBound ==)
+
+uncheckedIncEnum = succ
+uncheckedDecEnum = pred
+
+incBoundedEnum x
+   | isMaxBounded x = Nothing
+   | otherwise      = Just $ uncheckedIncEnum x
+decBoundedEnum x
+   | isMinBounded x = Nothing
+   | otherwise      = Just $ uncheckedDecEnum x
+
+-}
