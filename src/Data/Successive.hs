@@ -117,7 +117,6 @@ enumerateUp = incFrom minBound
 
 
 instance Successive ()
-instance Successive Bool
 instance Successive Ordering
 instance Successive Char
 instance Successive Int
@@ -150,6 +149,8 @@ instance Successive CWchar
 instance Successive CSigAtomic
 instance Successive (Proxy a)
 
+deriving instance Successive Any
+deriving instance Successive All
 deriving instance (Successive a)=> Successive (Identity a)
 deriving instance (Successive a)=> Successive (First a)
 deriving instance (Successive a)=> Successive (Last a)
@@ -159,13 +160,9 @@ deriving instance (Successive (m a))=> Successive (Alt m a)
 deriving instance (Successive (m a))=> Successive (Ap m a)
 deriving instance (Successive a)=> Successive (Const a b)
 
-instance Successive Any where
-  uncheckedDec _ = Any False
-  uncheckedInc _ = Any True
-
-instance Successive All where
-  uncheckedDec _ = All False
-  uncheckedInc _ = All True
+instance Successive Bool where
+  uncheckedDec _ = False
+  uncheckedInc _ = True
 
 instance Successive Natural where
   isMax _ = False
