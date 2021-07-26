@@ -47,6 +47,10 @@ Sensible defaults definitions are provided for types that are 'Bounded' and 'Enu
 
 Although it is easy to define instances in terms of 'uncheckedDec' and 'uncheckedInc', those functions should rarely be used. 'dec', 'inc', 'clampedDec', and 'clampedInc' are provided as more convenient ways to use @Successive@ types.
 
+@'uncheckedDec' x@ when @'isMin' x@ throws an error or silently return an incorrect value. Which it does is an internal instance-specific implemntation detail. If you want to guarantee an error, use @'Data.Maybe.unJust' . 'dec'@.
+
+@'uncheckedInc' x@ when @'isMax' x@ throws an error or silently return an incorrect value. Which it does is an internal instance-specific implemntation detail. If you want to guarantee an error, use @'Data.Maybe.unJust' . 'inc'@.
+
 Laws:
 (Ord a)=>
    clampDec x `min` x = clampDec x
@@ -106,12 +110,18 @@ incFrom = iterateMaybe inc
 {-# INLINABLE incFrom #-}
 
 decFromTo, incFromTo :: (Successive a)=> a -> a -> [a]
+{- ^
+@decFromTo start end@ and @incFromTo start end@ give all the values from @start@ to @end@, including @start@ and @end@. For @decFromTo@, if @end > start@, it will instead give all values from @start@. For @incFromTo@, if @end < start@, it will instead give all values from @start@.
+-}
 decFromTo x0 xN = takeUntil (xN ==) $ decFrom x0
 incFromTo x0 xN = takeUntil (xN ==) $ incFrom x0
 {-# INLINABLE incFromTo #-}
 {-# INLINABLE decFromTo #-}
 
 enumerateDown, enumerateUp :: (Bounded a, Successive a)=> NonEmpty.NonEmpty a
+{- ^
+@enumerateDown@ and @enumerateUp@ are 'NonEmpty' lists of all values of their type, ordered from largest to small and smallest to largest, respectively.
+-}
 enumerateDown = decFrom maxBound
 enumerateUp = incFrom minBound
 
@@ -119,12 +129,10 @@ enumerateUp = incFrom minBound
 instance Successive ()
 instance Successive Ordering
 instance Successive Char
-instance Successive Int
 instance Successive Int8
 instance Successive Int16
 instance Successive Int32
 instance Successive Int64
-instance Successive Word
 instance Successive Word8
 instance Successive Word16
 instance Successive Word32
@@ -163,6 +171,14 @@ deriving instance (Successive a)=> Successive (Const a b)
 instance Successive Bool where
   uncheckedDec _ = False
   uncheckedInc _ = True
+
+instance Successive Word where
+  uncheckedDec x = x - 1
+  uncheckedInc = (+) 1
+
+instance Successive Int where
+  uncheckedDec x = x - 1
+  uncheckedInc = (+) 1
 
 instance Successive Natural where
   isMax _ = False
