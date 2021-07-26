@@ -1,6 +1,4 @@
 {-# LANGUAGE DefaultSignatures
-           , RankNTypes
-           , ScopedTypeVariables
            , GeneralizedNewtypeDeriving
            , StandaloneDeriving
   #-}
