@@ -57,6 +57,10 @@ Laws:
    clampInc x `min` x = x
    clampDec x `max` x = x
    clampInc x `max` x = clampInc x
+
+Justification:
+Prelude's 'Enum' is an awkward class that is best used to coerce types that are smaller than 'Int' to and (unsafely) from 'Int'. It provides no way to tell when 'pred', 'succ', 'fromEnum' or 'toEnum' will fail for a given value.
+@Successive@ exists to take the guesswork out of 'pred' and 'succ' while still being convenient to define and use.
 -}
 class (Eq a)=> Successive a where
   isMax :: a -> Bool
