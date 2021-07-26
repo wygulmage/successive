@@ -11,7 +11,7 @@ module Data.Successive (
     dec, inc,
     clampDec, clampInc,
     decFrom, incFrom,
-    decFromTo, incFromTo,
+    -- decFromTo, incFromTo,
     enumerateDown, enumerateUp,
     ) where
 
@@ -109,14 +109,14 @@ decFrom = iterateMaybe dec
 incFrom = iterateMaybe inc
 {-# INLINABLE incFrom #-}
 
-decFromTo, incFromTo :: (Successive a)=> a -> a -> [a]
-{- ^
-@decFromTo start end@ and @incFromTo start end@ give all the values from @start@ to @end@, including @start@ and @end@. For @decFromTo@, if @end > start@, it will instead give all values from @start@. For @incFromTo@, if @end < start@, it will instead give all values from @start@.
--}
-decFromTo x0 xN = takeUntil (xN ==) $ decFrom x0
-incFromTo x0 xN = takeUntil (xN ==) $ incFrom x0
-{-# INLINABLE incFromTo #-}
-{-# INLINABLE decFromTo #-}
+-- decFromTo, incFromTo :: (Successive a)=> a -> a -> [a]
+-- {- ^
+-- @decFromTo start end@ and @incFromTo start end@ give all the values from @start@ to @end@, including @start@ and @end@. For @decFromTo@, if @end > start@, it will instead give all values from @start@. For @incFromTo@, if @end < start@, it will instead give all values from @start@.
+-- -}
+-- decFromTo x0 xN = takeUntil (xN ==) $ decFrom x0
+-- incFromTo x0 xN = takeUntil (xN ==) $ incFrom x0
+-- {-# INLINABLE incFromTo #-}
+-- {-# INLINABLE decFromTo #-}
 
 enumerateDown, enumerateUp :: (Bounded a, Successive a)=> NonEmpty.NonEmpty a
 {- ^
@@ -213,12 +213,12 @@ iterateMaybe :: (a -> Maybe a) -> a -> NonEmpty.NonEmpty a
 iterateMaybe f = NonEmpty.unfoldr (\ x -> (x, f x))
 {-# INLINE iterateMaybe #-}
 
-takeUntil :: (Foldable m)=> (a -> Bool) -> m a -> [a]
-{- ^
-@takeUntil p xs@ collects values of @xs@ until @p@ is satisfied. For example, @last . takeUntil p@ is equivalent to @'find' p@.
--}
-takeUntil p = foldr (\ x xs -> x : if p x then [] else xs) []
-{-# INLINE takeUntil #-}
+-- takeUntil :: (Foldable m)=> (a -> Bool) -> m a -> [a]
+-- {- ^
+-- @takeUntil p xs@ collects values of @xs@ until @p@ is satisfied. For example, @last . takeUntil p@ is equivalent to @'find' p@.
+-- -}
+-- takeUntil p = foldr (\ x xs -> x : if p x then [] else xs) []
+-- {-# INLINE takeUntil #-}
 
 
 {- NOTE: inlining
