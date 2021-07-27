@@ -22,7 +22,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import Data.Functor.Identity (Identity (Identity))
 import Data.Functor.Const (Const (Const))
 import Data.Functor.Compose (Compose (Compose))
-import Data.Functor.Classes (Eq1)
+import Data.Functor.Classes (Ord1)
 import Data.Ord (Down (Down))
 import Data.Monoid (Alt (Alt), Ap (Ap))
 import Data.Semigroup
@@ -35,7 +35,7 @@ import Numeric.Natural
 import qualified GHC.Natural as Natural (naturalToWordMaybe)
 
 
--- TODO: Should Successive required Ord? Should in NOT require Eq?
+-- TODO: Should `Successive` provide a way to determine whether there is a upper or lower bound (e.g. `hasMax, hasMin :: proxy a -> Bool`)?
 
 
 {- |
@@ -62,7 +62,7 @@ Justification:
 Prelude's 'Enum' is an awkward class that is best used to coerce types that are smaller than 'Int' to and (unsafely) from 'Int'. It provides no way to tell when 'pred', 'succ', 'fromEnum' or 'toEnum' will fail for a given value.
 @Successive@ exists to take the guesswork out of 'pred' and 'succ' while still being convenient to define and use.
 -}
-class (Eq a)=> Successive a where
+class (Ord a)=> Successive a where
   isMax :: a -> Bool
   isMin :: a -> Bool
   uncheckedDec :: a -> a
@@ -170,7 +170,7 @@ deriving instance (Successive a)=> Successive (Max a)
 deriving instance (Successive a)=> Successive (Min a)
 deriving instance (Successive (m a))=> Successive (Alt m a)
 deriving instance (Successive (m a))=> Successive (Ap m a)
-deriving instance (Eq1 m, Eq1 n, Eq a, Successive (m (n a)))=> Successive (Compose m n a)
+deriving instance (Ord1 m, Ord1 n, Ord a, Successive (m (n a)))=> Successive (Compose m n a)
 deriving instance (Successive a)=> Successive (Const a b)
 
 instance Successive Bool where
