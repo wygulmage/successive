@@ -21,6 +21,8 @@ import Data.Word
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.Functor.Identity (Identity (Identity))
 import Data.Functor.Const (Const (Const))
+import Data.Functor.Compose (Compose (Compose))
+import Data.Functor.Classes (Eq1)
 import Data.Ord (Down (Down))
 import Data.Monoid (Alt (Alt), Ap (Ap))
 import Data.Semigroup
@@ -168,6 +170,7 @@ deriving instance (Successive a)=> Successive (Max a)
 deriving instance (Successive a)=> Successive (Min a)
 deriving instance (Successive (m a))=> Successive (Alt m a)
 deriving instance (Successive (m a))=> Successive (Ap m a)
+deriving instance (Eq1 m, Eq1 n, Eq a, Successive (m (n a)))=> Successive (Compose m n a)
 deriving instance (Successive a)=> Successive (Const a b)
 
 instance Successive Bool where
