@@ -52,15 +52,15 @@ Although it is easy to define instances in terms of 'uncheckedDec' and 'unchecke
 @'uncheckedInc' x@ when @'isMax' x@ throws an error or silently return an incorrect value. Which it does is an internal instance-specific implemntation detail. If you want to guarantee an error, use @'Data.Maybe.unJust' . 'inc'@.
 
 Laws:
-(Ord a)=>
    clampDec x `min` x = clampDec x
    clampInc x `min` x = x
    clampDec x `max` x = x
    clampInc x `max` x = clampInc x
 
 Justification:
-Prelude's 'Enum' is an awkward class that is best used to coerce types that are smaller than 'Int' to and (unsafely) from 'Int'. It provides no way to tell when 'pred', 'succ', 'fromEnum' or 'toEnum' will fail for a given value.
-@Successive@ exists to take the guesswork out of 'pred' and 'succ' while still being convenient to define and use.
+@Successive@ exists to take the guesswork out of 'Enum'\'s ''pred' and 'succ' while still being convenient to define and use.
+
+This does not include the ability to write enumerations with step sizes. That really is out of scope, and belongs in a numeric subclass. I think @'enumFromTo' 'UppercaseLetter' 'ParagraphSeparator'@ is clear in context and useful, but the meaning of @'enumFromThen' 'TitlecaseLetter' 'EnclosingMark'@ is just too unclear.
 -}
 class (Ord a)=> Successive a where
   isMax :: a -> Bool
@@ -187,9 +187,7 @@ instance Successive Int where
 
 instance Successive Natural where
   isMax _ = False
-  isMin x = case Natural.naturalToWordMaybe x of
-     Just w  -> 0 == w
-     Nothing -> False
+  isMin = maybe False (0 ==) . Natural.naturalToWordMaybe -- See note on naturalToWordMaybe.
 
 instance Successive Integer where
   isMax _ = False
@@ -227,6 +225,7 @@ iterateMaybe f = NonEmpty.unfoldr (\ x -> (x, f x))
 
 
 {- NOTE: inlining
+
 Most derived methods are marked INLINABLE to allow them to specialize. This has essentialy the same as making them (non-derived) methods and always using the default definition.
 `decFrom`, `incFrom`, `decFromTo`, and `incFromTo` are marked INLINABLE to allow fusion. (All are good producers.)
 
@@ -283,4 +282,65 @@ decBoundedEnum x
    | isMinBounded x = Nothing
    | otherwise      = Just $ uncheckedDecEnum x
 
+-}
+
+{- NOTE: naturalToWordMaybe
+
+GHC does not unwrap the 0 in '(0 :: Natural) =='. This leads to code blowup:
+
+'maybe False (0 ==) . Natural.naturalToWordMaybe' compiles to this core (cleaned up):
+\ (x :: Natural) ->
+  case x of {
+    NatS# w# ->
+      case w# of {
+        __DEFAULT -> False;
+        0## -> True
+      };
+    NatJ# dt -> False
+  }
+
+
+'(0 ==)' compiles to this core:
+\ (ds_d4tf :: Natural) ->
+  case 0 of {
+    NatS# a1_a4vn ->
+      case ds_d4tf of {
+        NatS# b1_a4vq ->
+          tagToEnum#
+            @ Bool (eqWord# a1_a4vn b1_a4vq);
+        NatJ# ipv_a4vF -> False
+      };
+    GHC.Natural.NatJ# dt_a4vs ->
+      case ds_d4tf of {
+        GHC.Natural.NatS# ipv_a4vH -> False;
+        GHC.Natural.NatJ# dt1_a4vw ->
+          let {
+            nx#_s4Bg :: GHC.Integer.Type.GmpSize#
+            [LclId]
+            nx#_s4Bg
+              = uncheckedIShiftRL#
+                  (sizeofByteArray# dt_a4vs) 3# } in
+          case ==#
+                  nx#_s4Bg
+                  (uncheckedIShiftRL#
+                    (sizeofByteArray# dt1_a4vw) 3#)
+          of {
+            __DEFAULT -> False;
+            1# ->
+              case {__pkg_ccall integer-gmp-1.0.3.0 ByteArray#
+                              -> ByteArray#
+                              -> Int#
+                              -> State# RealWorld
+                              -> (# State# RealWorld, Int# #)}_a4vz
+                      dt_a4vs dt1_a4vw nx#_s4Bg realWorld#
+              of
+              { (# ds2_a4vB, ds3_a4vC #) ->
+              case ds3_a4vC of {
+                __DEFAULT -> False;
+                0# -> True
+              }
+              }
+          }
+      }
+  }
 -}
