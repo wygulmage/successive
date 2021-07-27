@@ -3,16 +3,16 @@
            , StandaloneDeriving
   #-}
 
-
+-- With this and a `LowerBounded` class you could have `Traversable` `Applicative` maps.
 module Data.Successive (
-    Successive (..),
-    dec, inc,
-    clampDec, clampInc,
-    decFrom, incFrom,
-    decFromTo, incFromTo,
-    enumerateFromTo,
-    enumeration,
-    ) where
+   Successive (..),
+   dec, inc,
+   clampDec, clampInc,
+   decFrom, incFrom,
+   decFromTo, incFromTo,
+   enumerateFromTo,
+   enumeration,
+   ) where
 
 
 import Data.Fixed (Fixed)
@@ -25,7 +25,7 @@ import Data.Functor.Identity (Identity (Identity))
 import Data.Functor.Const (Const (Const))
 import Data.Functor.Compose (Compose (Compose))
 import Data.Functor.Classes (Ord1)
-import Data.Ord (Down (Down))
+import Data.Ord (Down (Down, getDown))
 import Data.Monoid (Alt (Alt), Ap (Ap))
 import Data.Semigroup
    (Any (Any), All (All), First (First), Last (Last), Max (Max), Min (Min))
@@ -133,8 +133,8 @@ decFromTo, incFromTo :: (Successive a)=> a -> a -> [a]
 {- ^
 @decFromTo start end@ and @incFromTo start end@ give all the values from @start@ to @end@, including @start@ and @end@.
 -}
-decFromTo x0 xN = NonEmpty.takeWhile (xN >=) $ decFrom x0
-incFromTo x0 xN = NonEmpty.takeWhile (xN <=) $ incFrom x0
+decFromTo x0 xN = NonEmpty.takeWhile (xN <=) $ decFrom x0
+incFromTo x0 xN = NonEmpty.takeWhile (xN >=) $ incFrom x0
 {-# INLINABLE incFromTo #-}
 {-# INLINABLE decFromTo #-}
 
@@ -144,13 +144,14 @@ enumerateFromTo :: (Successive a)=> a -> a -> NonEmpty.NonEmpty a
 -}
 enumerateFromTo start end
    | start <= end
-   = NonEmpty.unfoldr
-      (\ x -> (x, if x < end then Just (uncheckedInc x) else Nothing))
-      start
+   = uncheckedIncFromTo start end
    | otherwise
-   = NonEmpty.unfoldr
-      (\ x -> (x, if x > end then Just (uncheckedDec x) else Nothing))
-      start
+   = fmap getDown $ uncheckedIncFromTo (Down start) (Down end)
+
+uncheckedIncFromTo :: (Successive a)=> a -> a -> NonEmpty.NonEmpty a
+uncheckedIncFromTo start end = iterateMaybe
+   (\ x -> if x < end then Just $ uncheckedInc x else Nothing)
+   start
 
 enumeration :: (Bounded a, Successive a)=> NonEmpty.NonEmpty a
 {- ^
