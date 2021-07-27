@@ -34,7 +34,7 @@ import Foreign.C.Types
    (CBool, CChar, CSChar, CUChar, CShort, CUShort, CInt, CUInt, CLong, CULong, CLLong, CULLong, CPtrdiff, CIntPtr, CUIntPtr, CSize, CWchar, CSigAtomic)
 
 import Numeric.Natural
-import qualified GHC.Natural as Natural (naturalToWordMaybe)
+import qualified GHC.Natural as GHC (naturalToWordMaybe)
 
 
 -- TODO: Should `Successive` provide a way to determine whether there is a upper or lower bound (e.g. `hasMax, hasMin :: proxy a -> Bool`)?
@@ -211,7 +211,7 @@ instance Successive Int where
 
 instance Successive Natural where
   isMax _ = False
-  isMin = (Just 0 ==) . Natural.naturalToWordMaybe -- See note on naturalToWordMaybe.
+  isMin = (Just 0 ==) . GHC.naturalToWordMaybe -- See note on naturalToWordMaybe.
 
 instance Successive Integer where
   isMax _ = False
