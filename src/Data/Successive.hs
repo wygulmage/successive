@@ -9,7 +9,8 @@ module Data.Successive (
     dec, inc,
     clampDec, clampInc,
     decFrom, incFrom,
-    -- decFromTo, incFromTo,
+    decFromTo, incFromTo,
+    enumerateFromTo,
     enumerateDown, enumerateUp,
     ) where
 
@@ -18,6 +19,7 @@ import Data.Fixed (Fixed)
 import Data.Int
 import Data.Proxy (Proxy)
 import Data.Word
+import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import Data.Functor.Identity (Identity (Identity))
 import Data.Functor.Const (Const (Const))
@@ -107,20 +109,42 @@ clampInc x
 {-# INLINABLE clampDec #-}
 {-# INLINABLE clampInc #-}
 
+clampDecTo, clampIncTo :: (Successive a)=> a -> a -> a
+clampDecTo limit x
+   | limit < x = uncheckedDec x
+   | otherwise = limit
+clampIncTo limit x
+  | limit > x = uncheckedInc x
+  | otherwise = limit
+
 decFrom, incFrom :: (Successive a)=> a -> NonEmpty.NonEmpty a
 decFrom = iterateMaybe dec
 {-# INLINABLE decFrom #-}
 incFrom = iterateMaybe inc
 {-# INLINABLE incFrom #-}
 
--- decFromTo, incFromTo :: (Successive a)=> a -> a -> [a]
--- {- ^
--- @decFromTo start end@ and @incFromTo start end@ give all the values from @start@ to @end@, including @start@ and @end@. For @decFromTo@, if @end > start@, it will instead give all values from @start@. For @incFromTo@, if @end < start@, it will instead give all values from @start@.
--- -}
--- decFromTo x0 xN = takeUntil (xN ==) $ decFrom x0
--- incFromTo x0 xN = takeUntil (xN ==) $ incFrom x0
--- {-# INLINABLE incFromTo #-}
--- {-# INLINABLE decFromTo #-}
+decFromTo, incFromTo :: (Successive a)=> a -> a -> [a]
+{- ^
+@decFromTo start end@ and @incFromTo start end@ give all the values from @start@ to @end@, including @start@ and @end@.
+-}
+decFromTo x0 xN = NonEmpty.takeWhile (xN >=) $ decFrom x0
+incFromTo x0 xN = NonEmpty.takeWhile (xN <=) $ incFrom x0
+{-# INLINABLE incFromTo #-}
+{-# INLINABLE decFromTo #-}
+
+enumerateFromTo :: (Successive a)=> a -> a -> NonEmpty.NonEmpty a
+{- ^
+@enumateFromTo start end@ is the 'NonEmpty' list of all values from start to end. If @start@ is less than @end@, the values are in ascending order; if it is greater, the values are in descending order. (If they are equal, you just get the singleton list of @start@.)
+-}
+enumerateFromTo start end
+   | start <= end
+   = NonEmpty.unfoldr
+      (\ x -> (x, if x < end then Just (uncheckedInc x) else Nothing))
+      start
+   | otherwise
+   = NonEmpty.unfoldr
+      (\ x -> (x, if x > end then Just (uncheckedDec x) else Nothing))
+      start
 
 enumerateDown, enumerateUp :: (Bounded a, Successive a)=> NonEmpty.NonEmpty a
 {- ^
@@ -215,13 +239,6 @@ iterateMaybe :: (a -> Maybe a) -> a -> NonEmpty.NonEmpty a
 -}
 iterateMaybe f = NonEmpty.unfoldr (\ x -> (x, f x))
 {-# INLINE iterateMaybe #-}
-
--- takeUntil :: (Foldable m)=> (a -> Bool) -> m a -> [a]
--- {- ^
--- @takeUntil p xs@ collects values of @xs@ until @p@ is satisfied. For example, @last . takeUntil p@ is equivalent to @'find' p@.
--- -}
--- takeUntil p = foldr (\ x xs -> x : if p x then [] else xs) []
--- {-# INLINE takeUntil #-}
 
 
 {- NOTE: inlining
