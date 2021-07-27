@@ -41,28 +41,30 @@ import qualified GHC.Natural as GHC (naturalToWordMaybe)
 
 
 {- |
-@'dec' x@ gives 'Just' the value closest to but smaller than @x@, or 'Nothing' if @x@ is the minimum value.
-@'inc' x@ gives 'Just' the value closest to but larger than @x@, or 'Nothing' if @x@ is the maximum value.
 A @Successive@ type may be bounded or unbounded, and you can determine whether a value is the maximum or minimum bound.
 
 Sensible defaults definitions are provided for types that are 'Bounded' and 'Enum'. For types that are not 'Bounded', you must provide definitions of 'isMax' and 'isMin'. For types that are not 'Enum', you must provide definitions of 'uncheckedDec' and 'uncheckedInc'.
 
-Although it is easy to define instances in terms of 'uncheckedDec' and 'uncheckedInc', those functions should rarely be used. 'dec', 'inc', 'clampedDec', and 'clampedInc' are provided as more convenient ways to use @Successive@ types.
+Although it is easy to define instances in terms of 'uncheckedDec' and 'uncheckedInc', those functions should rarely be used. 'dec', 'inc', 'clampDec', and 'clampInc' are provided as more convenient ways to use @Successive@ types.
 
 @'uncheckedDec' x@ when @'isMin' x@ throws an error or silently return an incorrect value. Which it does is an internal instance-specific implemntation detail. If you want to guarantee an error, use @'Data.Maybe.unJust' . 'dec'@.
 
 @'uncheckedInc' x@ when @'isMax' x@ throws an error or silently return an incorrect value. Which it does is an internal instance-specific implemntation detail. If you want to guarantee an error, use @'Data.Maybe.unJust' . 'inc'@.
 
 Laws:
-   clampDec x `min` x = clampDec x
-   clampInc x `min` x = x
-   clampDec x `max` x = x
-   clampInc x `max` x = clampInc x
+
+   @'clampDec' x `'min'` x@ = @clampDec x@
+
+   @'clampInc' x `'min'` x@ = @x@
+
+   @clampDec x `'max'` x@ = @x@
+
+   @clampInc x `'max'` x@ = @clampInc x@
 
 Justification:
-@Successive@ exists to take the guesswork out of 'Enum'\'s ''pred' and 'succ' while still being convenient to define and use.
+@Successive@ exists to take the guesswork out of 'Enum'\'s 'pred' and 'succ' while still being convenient to define and use.
 
-This does not include the ability to write enumerations with step sizes. That really is out of scope, and belongs in a numeric subclass. I think @'enumFromTo' 'UppercaseLetter' 'ParagraphSeparator'@ is clear in context and useful, but the meaning of @'enumFromThen' 'TitlecaseLetter' 'EnclosingMark'@ is just too unclear.
+This does not include the ability to write enumerations with step sizes. That really is out of scope, and belongs in a numeric subclass. I think @'enumFromTo' 'Data.Char.UppercaseLetter' 'Data.Char.ParagraphSeparator'@ is clear in context and useful, but the meaning of @'enumFromThen' 'Data.Char.TitlecaseLetter' 'Data.Char.EnclosingMark'@ is just too unclear.
 -}
 class (Ord a)=> Successive a where
   isMax :: a -> Bool
@@ -118,6 +120,10 @@ clampInc x
 --   | otherwise = limit
 
 decFrom, incFrom :: (Successive a)=> a -> NonEmpty.NonEmpty a
+{- ^
+@decFrom x@ is the 'NonEmpty.NonEmpty' list of all values less than or equal to @x@, in descending order.
+@incFrom x@ is the 'NonEmpty.NonEmpty' list of all values greater than or equal to @x@, in ascending order.
+-}
 decFrom = iterateMaybe dec
 {-# INLINABLE decFrom #-}
 incFrom = iterateMaybe inc
@@ -134,7 +140,7 @@ incFromTo x0 xN = NonEmpty.takeWhile (xN <=) $ incFrom x0
 
 enumerateFromTo :: (Successive a)=> a -> a -> NonEmpty.NonEmpty a
 {- ^
-@enumateFromTo start end@ is the 'NonEmpty' list of all values from start to end. If @start@ is less than @end@, the values are in ascending order; if it is greater, the values are in descending order. (If they are equal, you just get the singleton list of @start@.)
+@enumateFromTo start end@ is the 'NonEmpty.NonEmpty' list of all values from start to end. If @start@ is less than @end@, the values are in ascending order; if it is greater, the values are in descending order. (If they are equal, you just get the singleton list of @start@.)
 -}
 enumerateFromTo start end
    | start <= end
@@ -148,7 +154,7 @@ enumerateFromTo start end
 
 enumerateDown, enumerateUp :: (Bounded a, Successive a)=> NonEmpty.NonEmpty a
 {- ^
-@enumerateDown@ and @enumerateUp@ are 'NonEmpty' lists of all values of their type, ordered from largest to small and smallest to largest, respectively.
+@enumerateDown@ and @enumerateUp@ are 'NonEmpty.NonEmpty' lists of all values of their type, ordered from largest to small and smallest to largest, respectively.
 -}
 enumerateDown = decFrom maxBound
 enumerateUp = incFrom minBound
@@ -221,10 +227,17 @@ instance Successive (Fixed a) where
   isMax _ = False
   isMin _ = False
 
-instance (Successive a)=> Successive (Down a) where
-{- ^
-reverses the operations
+{- |
+'Down' reverses the operations:
+
+@
+isMax (Down x) = isMin x
+isMin (Down x) = isMax x
+uncheckedDec (Down x) = Down (uncheckedInc x)
+uncheckedInc (Down x) = Down (uncheckedDec x)
+@
 -}
+instance (Successive a)=> Successive (Down a) where
   isMax (Down x) = isMin x
   isMin (Down x) = isMax x
   uncheckedDec (Down x) = Down $ uncheckedInc x
@@ -235,7 +248,7 @@ reverses the operations
 
 iterateMaybe :: (a -> Maybe a) -> a -> NonEmpty.NonEmpty a
 {- ^
-@iterateMaybe f x@ is the 'NonEmpty' list produced by iterating @f@ from @x@ until @f x'@ is @Nothing@.
+@iterateMaybe f x@ is the 'NonEmpty.NonEmpty' list produced by iterating @f@ from @x@ until @f x'@ is @Nothing@.
 -}
 iterateMaybe f = NonEmpty.unfoldr (\ x -> (x, f x))
 {-# INLINE iterateMaybe #-}
