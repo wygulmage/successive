@@ -109,13 +109,13 @@ clampInc x
 {-# INLINABLE clampDec #-}
 {-# INLINABLE clampInc #-}
 
-clampDecTo, clampIncTo :: (Successive a)=> a -> a -> a
-clampDecTo limit x
-   | limit < x = uncheckedDec x
-   | otherwise = limit
-clampIncTo limit x
-  | limit > x = uncheckedInc x
-  | otherwise = limit
+-- clampDecTo, clampIncTo :: (Successive a)=> a -> a -> a
+-- clampDecTo limit x
+--    | limit < x = uncheckedDec x
+--    | otherwise = limit
+-- clampIncTo limit x
+--   | limit > x = uncheckedInc x
+--   | otherwise = limit
 
 decFrom, incFrom :: (Successive a)=> a -> NonEmpty.NonEmpty a
 decFrom = iterateMaybe dec
@@ -211,7 +211,7 @@ instance Successive Int where
 
 instance Successive Natural where
   isMax _ = False
-  isMin = maybe False (0 ==) . Natural.naturalToWordMaybe -- See note on naturalToWordMaybe.
+  isMin = (Just 0 ==) . Natural.naturalToWordMaybe -- See note on naturalToWordMaybe.
 
 instance Successive Integer where
   isMax _ = False
@@ -305,7 +305,7 @@ decBoundedEnum x
 
 GHC does not unwrap the 0 in '(0 :: Natural) =='. This leads to code blowup:
 
-'maybe False (0 ==) . Natural.naturalToWordMaybe' compiles to this core (cleaned up):
+'(Just 0 ==) . Natural.naturalToWordMaybe' compiles to this core (cleaned up):
 \ (x :: Natural) ->
   case x of {
     NatS# w# ->
@@ -318,17 +318,17 @@ GHC does not unwrap the 0 in '(0 :: Natural) =='. This leads to code blowup:
 
 
 '(0 ==)' compiles to this core:
-\ (ds_d4tf :: Natural) ->
+\ (ds :: Natural) ->
   case 0 of {
     NatS# a1_a4vn ->
-      case ds_d4tf of {
+      case ds of {
         NatS# b1_a4vq ->
           tagToEnum#
             @ Bool (eqWord# a1_a4vn b1_a4vq);
         NatJ# ipv_a4vF -> False
       };
     GHC.Natural.NatJ# dt_a4vs ->
-      case ds_d4tf of {
+      case ds of {
         GHC.Natural.NatS# ipv_a4vH -> False;
         GHC.Natural.NatJ# dt1_a4vw ->
           let {
