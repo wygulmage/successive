@@ -11,7 +11,7 @@ module Data.Successive (
     decFrom, incFrom,
     decFromTo, incFromTo,
     enumerateFromTo,
-    enumerateDown, enumerateUp,
+    enumeration,
     ) where
 
 
@@ -152,12 +152,11 @@ enumerateFromTo start end
       (\ x -> (x, if x > end then Just (uncheckedDec x) else Nothing))
       start
 
-enumerateDown, enumerateUp :: (Bounded a, Successive a)=> NonEmpty.NonEmpty a
+enumeration :: (Bounded a, Successive a)=> NonEmpty.NonEmpty a
 {- ^
-@enumerateDown@ and @enumerateUp@ are 'NonEmpty.NonEmpty' lists of all values of their type, ordered from largest to small and smallest to largest, respectively.
+@enumeration@ is the 'NonEmpty.NonEmpty' list of all values of a type, ordered from smallest to largest.
 -}
-enumerateDown = decFrom maxBound
-enumerateUp = incFrom minBound
+enumeration = incFrom minBound
 
 
 instance Successive ()
