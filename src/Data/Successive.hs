@@ -25,7 +25,7 @@ import Data.Functor.Identity (Identity (Identity))
 import Data.Functor.Const (Const (Const))
 import Data.Functor.Compose (Compose (Compose))
 import Data.Functor.Classes (Ord1)
-import Data.Ord (Down (Down, getDown))
+import Data.Ord (Down (Down))
 import Data.Monoid (Alt (Alt), Ap (Ap))
 import Data.Semigroup
    (Any (Any), All (All), First (First), Last (Last), Max (Max), Min (Min))
@@ -145,19 +145,24 @@ enumerateRange :: (Successive a)=> a -> a -> NonEmpty.NonEmpty a
 @enumateFromTo start end@ is the 'NonEmpty.NonEmpty' list of all values from start to end. If @start@ is less than @end@, the values are in ascending order; if it is greater, the values are in descending order. (If they are equal, you just get the singleton list of @start@.)
 -}
 enumerateRange start end
-   | start <= end
-   = uncheckedIncFromTo start end
+   -- | start > end
+   | GT <- compare start end
+   -- = getDown <$> uncheckedIncFromTo (Down start) (Down end)
+   = uncheckedDecFromTo start end
    | otherwise
-   = fmap getDown $ uncheckedIncFromTo (Down start) (Down end)
+   = uncheckedIncFromTo start end
 
-uncheckedIncFromTo :: (Successive a)=> a -> a -> NonEmpty.NonEmpty a
-uncheckedIncFromTo start end = iterateMaybe
-   (incBelow end)
-   start
+uncheckedDecFromTo, uncheckedIncFromTo :: (Successive a)=> a -> a -> NonEmpty.NonEmpty a
+uncheckedDecFromTo start end = iterateMaybe (decAbove end) start
+uncheckedIncFromTo start end = iterateMaybe (incBelow end) start
 
-incBelow :: (Successive a)=> a -> a -> Maybe a
+
+decAbove, incBelow :: (Successive a)=> a -> a -> Maybe a
+decAbove end x
+   | LT <- compare end x = Just $ uncheckedDec x
+   | otherwise = Nothing
 incBelow end x
-   | end > x = Just $ uncheckedInc x
+   | GT <- compare end x = Just $ uncheckedInc x
    | otherwise = Nothing
 
 enumeration :: (Bounded a, Successive a)=> NonEmpty.NonEmpty a
@@ -253,6 +258,13 @@ instance (Successive a)=> Successive (Down a) where
 
 --- Helpers (not exported)
 
+getDown :: Down a -> a
+{- ^
+'Data.Ord.getDown' does not exist in older GHC versions (base earlier than 4.14.0.0).
+-}
+getDown (Down x) = x
+{-# INLINE getDown #-}
+
 iterateMaybe :: (a -> Maybe a) -> a -> NonEmpty.NonEmpty a
 {- ^
 @iterateMaybe f x@ is the 'NonEmpty.NonEmpty' list produced by iterating @f@ from @x@ until @f x'@ is @Nothing@.
@@ -319,6 +331,10 @@ decBoundedEnum x
    | isMinBounded x = Nothing
    | otherwise      = Just $ uncheckedDecEnum x
 
+
+Finally, by splitting things up more instances could be admitted.
+For example, methods with signatures like `a -> a` admit instances like `instance (Class b)=> Class (a -> b) where method f x =  method (f x)`. Having a superclass with only clamped (and unsafe) methods, and a subclass with methods to `Maybe` and `Bool`, gives full functionality.
+However, even though that's possible, the convenience may not be worth the inconvienience of dealing with anouther class.
 -}
 
 {- NOTE: naturalToWordMaybe
