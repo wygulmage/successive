@@ -10,7 +10,7 @@ module Data.Successive (
    clampDec, clampInc,
    decFrom, incFrom,
    decFromTo, incFromTo,
-   enumerateFromTo,
+   enumerateRange,
    enumeration,
    ) where
 
@@ -47,10 +47,6 @@ Sensible defaults definitions are provided for types that are 'Bounded' and 'Enu
 
 Although it is easy to define instances in terms of 'uncheckedDec' and 'uncheckedInc', those functions should rarely be used. 'dec', 'inc', 'clampDec', and 'clampInc' are provided as more convenient ways to use @Successive@ types.
 
-@'uncheckedDec' x@ when @'isMin' x@ throws an error or silently return an incorrect value. Which it does is an internal instance-specific implemntation detail. If you want to guarantee an error, use @'Data.Maybe.unJust' . 'dec'@.
-
-@'uncheckedInc' x@ when @'isMax' x@ throws an error or silently return an incorrect value. Which it does is an internal instance-specific implemntation detail. If you want to guarantee an error, use @'Data.Maybe.unJust' . 'inc'@.
-
 Laws:
 
    @'clampDec' x `'min'` x@ = @clampDec x@
@@ -67,20 +63,26 @@ Justification:
 This does not include the ability to write enumerations with step sizes. That really is out of scope, and belongs in a numeric subclass. I think @'enumFromTo' 'Data.Char.UppercaseLetter' 'Data.Char.ParagraphSeparator'@ is clear in context and useful, but the meaning of @'enumFromThen' 'Data.Char.TitlecaseLetter' 'Data.Char.EnclosingMark'@ is just too unclear.
 -}
 class (Ord a)=> Successive a where
-  isMax :: a -> Bool
-  isMin :: a -> Bool
-  uncheckedDec :: a -> a
-  uncheckedInc :: a -> a
+   isMax :: a -> Bool
+   isMin :: a -> Bool
+   uncheckedDec :: a -> a
+   {- ^
+   @'uncheckedDec' x@ when @'isMin' x@ throws an error or silently return an incorrect value. Which it does is an internal instance-specific implemntation detail. If you want to guarantee an error, use @'Data.Maybe.unJust' . 'dec'@.
+   -}
+   uncheckedInc :: a -> a
+   {- ^
+   @'uncheckedInc' x@ when @'isMax' x@ throws an error or silently return an incorrect value. Which it does is an internal instance-specific implemntation detail. If you want to guarantee an error, use @'Data.Maybe.unJust' . 'inc'@.
+   -}
 
-  default isMax :: (Bounded a)=> a -> Bool
-  default isMin :: (Bounded a)=> a -> Bool
-  isMax = (maxBound ==)
-  isMin = (minBound ==)
+   default isMax :: (Bounded a)=> a -> Bool
+   default isMin :: (Bounded a)=> a -> Bool
+   isMax = (maxBound ==)
+   isMin = (minBound ==)
 
-  default uncheckedDec :: (Enum a)=> a -> a
-  default uncheckedInc :: (Enum a)=> a -> a
-  uncheckedDec = pred
-  uncheckedInc = succ
+   default uncheckedDec :: (Enum a)=> a -> a
+   default uncheckedInc :: (Enum a)=> a -> a
+   uncheckedDec = pred
+   uncheckedInc = succ
 
 
 {- |
@@ -138,11 +140,11 @@ incFromTo x0 xN = NonEmpty.takeWhile (xN >=) $ incFrom x0
 {-# INLINABLE incFromTo #-}
 {-# INLINABLE decFromTo #-}
 
-enumerateFromTo :: (Successive a)=> a -> a -> NonEmpty.NonEmpty a
+enumerateRange :: (Successive a)=> a -> a -> NonEmpty.NonEmpty a
 {- ^
 @enumateFromTo start end@ is the 'NonEmpty.NonEmpty' list of all values from start to end. If @start@ is less than @end@, the values are in ascending order; if it is greater, the values are in descending order. (If they are equal, you just get the singleton list of @start@.)
 -}
-enumerateFromTo start end
+enumerateRange start end
    | start <= end
    = uncheckedIncFromTo start end
    | otherwise
@@ -150,8 +152,13 @@ enumerateFromTo start end
 
 uncheckedIncFromTo :: (Successive a)=> a -> a -> NonEmpty.NonEmpty a
 uncheckedIncFromTo start end = iterateMaybe
-   (\ x -> if x < end then Just $ uncheckedInc x else Nothing)
+   (incBelow end)
    start
+
+incBelow :: (Successive a)=> a -> a -> Maybe a
+incBelow end x
+   | end > x = Just $ uncheckedInc x
+   | otherwise = Nothing
 
 enumeration :: (Bounded a, Successive a)=> NonEmpty.NonEmpty a
 {- ^
@@ -238,10 +245,10 @@ uncheckedInc (Down x) = Down (uncheckedDec x)
 @
 -}
 instance (Successive a)=> Successive (Down a) where
-  isMax (Down x) = isMin x
-  isMin (Down x) = isMax x
-  uncheckedDec (Down x) = Down $ uncheckedInc x
-  uncheckedInc (Down x) = Down $ uncheckedDec x
+  isMax = isMin . getDown
+  isMin = isMax . getDown
+  uncheckedDec = fmap uncheckedInc
+  uncheckedInc = fmap uncheckedDec
 
 
 --- Helpers (not exported)
